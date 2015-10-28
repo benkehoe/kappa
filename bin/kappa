@@ -62,6 +62,7 @@ def invoke(ctx):
     response = context.invoke()
     log_data = base64.b64decode(response['LogResult'])
     click.echo(log_data)
+    click.echo(response['Payload'].read())
     click.echo('...done')
 
 @cli.command()
