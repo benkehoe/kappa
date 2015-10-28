@@ -38,31 +38,32 @@ Getting Started
 
 Kappa is a command line tool.  The basic command format is:
 
-    kappa <path to config file> <command> [optional command args]
+    kappa <command> [optional command args]
 
 Where ``command`` is one of:
 
-* create - creates the IAM policy (if necessary), the IAM role, and zips and
+* ``create`` - creates the IAM policy (if necessary), the IAM role, and zips and
   uploads the Lambda function code to the Lambda service
-* invoke - make a synchronous call to your Lambda function, passing test data
+* ``invoke`` - make a synchronous call to your Lambda function, passing test data
   and display the resulting log data
-* invoke_async - make an asynchronous call to your Lambda function passing test
+* ``invoke_async`` - make an asynchronous call to your Lambda function passing test
   data.
-* dryrun - make the call but only check things like permissions and report
+* ``dryrun`` - make the call but only check things like permissions and report
   back.  Don't actually run the code.
-* tail - display the most recent log events for the function (remember that it
+* ``tail`` - display the most recent log events for the function (remember that it
   can take several minutes before log events are available from CloudWatch)
-* add_event_sources - hook up an event source to your Lambda function
-* delete - delete the Lambda function, remove any event sources, delete the IAM
+* ``add_event_sources`` - hook up an event source to your Lambda function
+* ``delete`` - delete the Lambda function, remove any event sources, delete the IAM
   policy and role
-* update_code - Upload new code for your Lambda function
-* update_event_sources - Update the event sources based on the information in
+* ``update_code`` - Upload new code for your Lambda function
+* ``update_event_sources`` - Update the event sources based on the information in
   your kappa config file
-* status - display summary information about functions, stacks, and event
+* ``status`` - display summary information about functions, stacks, and event
   sources related to your project.
 
-The ``config file`` is a YAML format file containing all of the information
-about your Lambda function.
+The the current directory must contain a YAML format file  ``kappa.yml`` containing
+the information about your Lambda function, unless the ``--config`` option is given
+to point to a different file.
 
 If you use environment variables for your AWS credentials (as normally supported by boto),
 simply exclude the ``profile`` element from the YAML file.
@@ -76,9 +77,9 @@ The basic workflow is:
 * Create any custom IAM policy you need to execute your Lambda function
 * Create some sample data
 * Create the YAML config file with all of the information
-* Run ``kappa <path-to-config> create`` to create roles and upload function
-* Run ``kappa <path-to-config> invoke`` to invoke the function with test data
-* Run ``kappa <path-to-config> update_code`` to upload new code for your Lambda
+* Run ``kappa create`` to create roles and upload function
+* Run ``kappa invoke`` to invoke the function with test data
+* Run ``kappa update_code`` to upload new code for your Lambda
   function
-* Run ``kappa <path-to-config> add_event_sources`` to hook your function up to the event source
-* Run ``kappa <path-to-config> tail`` to see more output
+* Run ``kappa add_event_sources`` to hook your function up to the event source
+* Run ``kappa tail`` to see more output
