@@ -21,8 +21,9 @@ from kappa.context import Context
 
 
 @click.group()
-@click.argument(
-    'config',
+@click.option(
+    '--config',
+    default='kappa.yml',
     type=click.File('rb'),
     envvar='KAPPA_CONFIG',
 )

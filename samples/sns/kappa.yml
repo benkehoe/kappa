@@ -1,7 +1,7 @@
 ---
-# change profile and region to suit your needs
-profile: personal
-region: us-east-1
+# use profile and region to suit your needs
+#profile: personal
+#region: us-east-1
 resources: resources.json
 iam:
   policy:

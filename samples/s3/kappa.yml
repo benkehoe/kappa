@@ -1,7 +1,7 @@
 ---
-# Change profile and region to suit your application
-profile: personal
-region: us-east-1
+# use profile and region to suit your application
+#profile: personal
+#region: us-east-1
 iam:
   # In this case, we are using an existing managed policy so we just
   # need to put the name of that policy here.
