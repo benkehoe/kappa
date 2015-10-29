@@ -15,6 +15,7 @@ from datetime import datetime
 import logging
 import base64
 import exceptions
+import os, os.path
 
 import click
 
@@ -34,18 +35,45 @@ from kappa.context import Context
 )
 @click.pass_context
 def cli(ctx, config=None, debug=False):
-    if config is None:
-        config = 'kappa.yaml'
-    try:
-        configFile = open(config, 'rb')
-    except exceptions.IOError, e:
-        if config == 'kappa.yaml':
-            try:
-                configFile = open('kappa.yml', 'rb')
-            except Exception, e:
-                raise click.FileError(config, hint=e.strerror)
+    err = []
+    found = False
+    if config is not None and os.path.dirname(config):
+        config = [config]
+        try:
+            configFile = open(config[0], 'rb')
+            found = True
+        except exceptions.IOError, e:
+            err.append(e.strerror)
+        except Exception, e:
+            err.append(str(e))
+    else:
+        if config is not None:
+            config = [config]
         else:
-            raise click.FileError(config, hint=e.strerror)
+            config = ['kappa.yaml', 'kappa.yml']
+        d = os.getcwd()
+        while not found:
+            for cfg in config:
+                try:
+                    configFile = open(os.path.join(d, cfg), 'rb')
+                    found = True
+                    break
+                except exceptions.IOError, e:
+                    errstr = e.strerror
+                    if not err or errstr not in err:
+                        err.append(errstr)
+                except Exception, e:
+                    errstr = str(e)
+                    if not err or errstr not in err:
+                        err.append(errstr)
+            newd = os.path.dirname(d)
+            if not newd or newd == d:
+                break
+            d = newd
+
+    if not found:
+        raise click.FileError(config[0], hint=', '.join(err))
+
     ctx.obj['debug'] = debug
     ctx.obj['config'] = configFile
 
