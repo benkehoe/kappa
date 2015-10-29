@@ -14,17 +14,17 @@
 from datetime import datetime
 import logging
 import base64
+import exceptions
 
 import click
 
 from kappa.context import Context
 
-
 @click.group()
 @click.option(
     '--config',
-    default='kappa.yml',
-    type=click.File('rb'),
+    #default='kappa.yaml',
+    #type=click.File('rb'),
     envvar='KAPPA_CONFIG',
 )
 @click.option(
@@ -34,9 +34,20 @@ from kappa.context import Context
 )
 @click.pass_context
 def cli(ctx, config=None, debug=False):
-    config = config
+    if config is None:
+        config = 'kappa.yaml'
+    try:
+        configFile = open(config, 'rb')
+    except exceptions.IOError, e:
+        if config == 'kappa.yaml':
+            try:
+                configFile = open('kappa.yml', 'rb')
+            except Exception, e:
+                raise click.FileError(config, hint=e.strerror)
+        else:
+            raise click.FileError(config, hint=e.strerror)
     ctx.obj['debug'] = debug
-    ctx.obj['config'] = config
+    ctx.obj['config'] = configFile
 
 @cli.command()
 @click.pass_context
