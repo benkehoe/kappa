@@ -73,7 +73,7 @@ class Policy(object):
                 return policy
         return None
 
-    def create(self):
+    def deploy(self):
         LOG.debug('creating policy %s', self.name)
         policy = self.exists()
         if not policy and self.document:

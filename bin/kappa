@@ -80,10 +80,10 @@ def cli(ctx, config=None, debug=False):
 
 @cli.command()
 @click.pass_context
-def create(ctx):
+def deploy(ctx):
     context = Context(ctx.obj['config'], ctx.obj['debug'])
     click.echo('creating...')
-    context.create()
+    context.deploy()
     click.echo('...done')
 
 @cli.command()

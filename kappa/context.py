@@ -138,6 +138,18 @@ class Context(object):
         time.sleep(5)
         self.function.create()
 
+    def deploy(self):
+        if self.policies:
+            [policy.deploy() for policy in self.policies]
+        if self.role:
+            self.role.create()
+        # There is a consistency problem here.
+        # If you don't wait for a bit, the function.create call
+        # will fail because the policy has not been attached to the role.
+        LOG.debug('Waiting for policy/role propogation')
+        time.sleep(5)
+        self.function.deploy()
+
     def update_code(self):
         self.function.update()
 

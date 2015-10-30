@@ -63,7 +63,7 @@ class Function(object):
 
     @property
     def path(self):
-        return self._config['path']
+        return self._config.get('path', 'src/')
 
     @property
     def test_data(self):
@@ -91,6 +91,9 @@ class Function(object):
             log_group_name = '/aws/lambda/%s' % self.name
             self._log = kappa.log.Log(self._context, log_group_name)
         return self._log
+
+    def exists(self):
+        return bool(self.arn)
 
     def tail(self):
         LOG.debug('tailing function: %s', self.name)
@@ -164,6 +167,12 @@ class Function(object):
             except Exception:
                 LOG.exception('Unable to upload zip file')
         self.add_permissions()
+
+    def deploy(self):
+        if self.exists():
+            return self.update()
+        else:
+            return self.create()
 
     def update(self):
         LOG.debug('updating %s', self.zipfile_name)
