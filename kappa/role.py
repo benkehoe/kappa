@@ -31,6 +31,21 @@ AssumeRolePolicyDocument = """{
     } ]
 }"""
 
+LoggingPolicyDocumentTemplate = """{{
+  "Version": "2012-10-17",
+  "Statement": [
+    {{
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:{region}:{account_id}:log-group:/aws/lambda/{function_name}:*"
+    }}
+  ]
+}}"""
+
 
 class Role(object):
 
@@ -82,33 +97,58 @@ class Role(object):
         return None
 
     def create(self):
-        LOG.debug('creating role %s', self.name)
         role = self.exists()
         if not role:
+            LOG.debug('creating role %s', self.name)
             try:
                 response = self._iam_svc.create_role(
                     Path=self.Path, RoleName=self.name,
                     AssumeRolePolicyDocument=AssumeRolePolicyDocument)
                 LOG.debug(response)
-                if self._context.policy:
-                    LOG.debug('attaching policy %s', self._context.policy.arn)
-                    response = self._iam_svc.attach_role_policy(
+
+                LOG.debug('attaching logging policy')
+
+                account_id = self._iam_svc.get_user()['User']['Arn'].split(':')[4]
+
+                LOG.debug(str(self._context.lambda_config))
+                logging_policy_document = LoggingPolicyDocumentTemplate.format(
+                        region=self._iam_svc.meta.region_name,
+                        account_id=account_id,
+                        function_name=self._context.lambda_config.get('name'),
+                    )
+                
+                response = self._iam_svc.put_role_policy(
                         RoleName=self.name,
-                        PolicyArn=self._context.policy.arn)
-                    LOG.debug(response)
+                        PolicyName='CloudWatchLogs',
+                        PolicyDocument=logging_policy_document)
+                LOG.debug(response) 
             except ClientError:
                 LOG.exception('Error creating Role')
+        else:
+            LOG.debug('role %s exists', self.name)
+        if self._context.policies:
+            try:
+                for policy in self._context.policies:
+                    LOG.debug('attaching policy %s', policy.arn)
+                    response = self._iam_svc.attach_role_policy(
+                        RoleName=self.name,
+                        PolicyArn=policy.arn)
+                    LOG.debug(response)
+            except ClientError:
+                LOG.exception('Error attaching policies')
 
     def delete(self):
         response = None
         LOG.debug('deleting role %s', self.name)
         try:
             LOG.debug('First detach the policy from the role')
-            policy_arn = self._context.policy.arn
-            if policy_arn:
-                response = self._iam_svc.detach_role_policy(
-                    RoleName=self.name, PolicyArn=policy_arn)
-                LOG.debug(response)
+            policy_arns = [policy.arn for policy in self._context.policies]
+            for policy_arn in policy_arns:
+                if policy_arn:
+                    response = self._iam_svc.detach_role_policy(
+                        RoleName=self.name, PolicyArn=policy_arn)
+                    LOG.debug(response)
+            LOG.debug('Now delete role')
             response = self._iam_svc.delete_role(RoleName=self.name)
             LOG.debug(response)
         except ClientError:

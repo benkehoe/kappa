@@ -199,14 +199,6 @@ class Function(object):
             response = None
         return response
 
-    def invoke_asynch(self, data_file):
-        LOG.debug('_invoke_async %s', data_file)
-        with open(data_file) as fp:
-            response = self._lambda_svc.invoke_async(
-                FunctionName=self.name,
-                InvokeArgs=fp)
-            LOG.debug(response)
-
     def _invoke(self, test_data, invocation_type):
         if test_data is None:
             test_data = self.test_data

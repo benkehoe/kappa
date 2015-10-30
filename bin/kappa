@@ -56,6 +56,7 @@ def cli(ctx, config=None, debug=False):
             for cfg in config:
                 try:
                     configFile = open(os.path.join(d, cfg), 'rb')
+                    os.chdir(d)
                     found = True
                     break
                 except exceptions.IOError, e:

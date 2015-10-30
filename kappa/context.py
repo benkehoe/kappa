@@ -34,12 +34,16 @@ class Context(object):
         else:
             self.set_logger('kappa', logging.INFO)
         self.config = yaml.load(config_file)
-        if 'policy' in self.config.get('iam', ''):
-            self.policy = kappa.policy.Policy(
-                self, self.config['iam']['policy'])
+        if 'policy' in self.config.get('iam', {}):
+            if isinstance(self.config['iam']['policy'], list):
+                self.policies = [kappa.policy.Policy(
+                    self, policy) for policy in self.config['iam']['policy']]
+            else:
+                self.policies = [kappa.policy.Policy(
+                    self, self.config['iam']['policy'])]
         else:
-            self.policy = None
-        if 'role' in self.config.get('iam', ''):
+            self.policies = None
+        if 'role' in self.config.get('iam', {}):
             self.role = kappa.role.Role(
                 self, self.config['iam']['role'])
         else:
@@ -123,8 +127,8 @@ class Context(object):
             event_source.update(self.function)
 
     def create(self):
-        if self.policy:
-            self.policy.create()
+        if self.policies:
+            [policy.create() for policy in self.policies]
         if self.role:
             self.role.create()
         # There is a consistency problem here.
@@ -158,15 +162,15 @@ class Context(object):
         if self.role:
             self.role.delete()
         time.sleep(5)
-        if self.policy:
-            self.policy.delete()
+        if self.policies:
+            [policy.delete() for policy in self.policies]
 
     def status(self):
         status = {}
-        if self.policy:
-            status['policy'] = self.policy.status()
+        if self.policies:
+            status['policies'] = [policy.status() for policy in self.policies]
         else:
-            status['policy'] = None
+            status['policies'] = None
         if self.role:
             status['role'] = self.role.status()
         else:
