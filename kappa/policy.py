@@ -77,16 +77,19 @@ class Policy(object):
         LOG.debug('creating policy %s', self.name)
         policy = self.exists()
         if not policy and self.document:
-            with open(self.document, 'rb') as fp:
-                doc = fp.read()
-                try:
-                    response = self._iam_svc.create_policy(
-                        Path=self.path, PolicyName=self.name,
-                        PolicyDocument=doc,
-                        Description=self.description or '')
-                    LOG.debug(response)
-                except Exception:
-                    LOG.exception('Error creating Policy')
+            try:
+                with open(self.document, 'rb') as fp:
+                    doc = fp.read()
+            except:
+                doc = self.document
+            try:
+                response = self._iam_svc.create_policy(
+                    Path=self.path, PolicyName=self.name,
+                    PolicyDocument=doc,
+                    Description=self.description or '')
+                LOG.debug(response)
+            except Exception:
+                LOG.exception('Error creating Policy')
 
     def delete(self):
         response = None
