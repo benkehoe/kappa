@@ -40,7 +40,8 @@ def cli(ctx, config=None, debug=False):
     if config is not None and os.path.dirname(config):
         config = [config]
         try:
-            configFile = open(config[0], 'rb')
+            configPath = os.path.abspath(config[0])
+            configFile = open(configPath, 'rb')
             found = True
         except exceptions.IOError, e:
             err.append(e.strerror)
@@ -55,7 +56,8 @@ def cli(ctx, config=None, debug=False):
         while not found:
             for cfg in config:
                 try:
-                    configFile = open(os.path.join(d, cfg), 'rb')
+                    configPath = os.path.join(d, cfg)
+                    configFile = open(configPath, 'rb')
                     os.chdir(d)
                     found = True
                     break
@@ -77,56 +79,76 @@ def cli(ctx, config=None, debug=False):
 
     ctx.obj['debug'] = debug
     ctx.obj['config'] = configFile
+    ctx.obj['name'] = os.path.basename(os.path.dirname(configPath))
 
 @cli.command()
 @click.pass_context
 def deploy(ctx):
-    context = Context(ctx.obj['config'], ctx.obj['debug'])
-    click.echo('creating...')
+    context = Context(ctx.obj['name'], ctx.obj['config'], ctx.obj['debug'])
+    click.echo('deploying...')
     context.deploy()
     click.echo('...done')
 
 @cli.command()
 @click.pass_context
 def update_code(ctx):
-    context = Context(ctx.obj['config'], ctx.obj['debug'])
+    context = Context(ctx.obj['name'], ctx.obj['config'], ctx.obj['debug'])
     click.echo('updating code...')
     context.update_code()
     click.echo('...done')
 
+def load_input(ctx, input, input_file):
+    if input_file:
+        return input_file.read()
+    elif input:
+        return input
+
 @cli.command()
+@click.option(
+    '--input',
+)
+@click.option(
+    '--input-file',
+    type=click.File('rb'),
+)
+@click.option(
+    '--dry-run',
+    is_flag=True,
+)
 @click.pass_context
-def invoke(ctx):
-    context = Context(ctx.obj['config'], ctx.obj['debug'])
+def invoke(ctx, input=None, input_file=None, dry_run=False):
+    context = Context(ctx.obj['name'], ctx.obj['config'], ctx.obj['debug'])
+    input = load_input(ctx, input, input_file)
+
     click.echo('invoking...')
-    response = context.invoke()
-    log_data = base64.b64decode(response['LogResult'])
-    click.echo(log_data)
+    response = context.invoke(input, dry_run=dry_run)
+    if 'LogResult' in response:
+        log_data = base64.b64decode(response['LogResult'])
+        click.echo(log_data)
     click.echo(response['Payload'].read())
     click.echo('...done')
 
 @cli.command()
-@click.pass_context
-def dryrun(ctx):
-    context = Context(ctx.obj['config'], ctx.obj['debug'])
-    click.echo('invoking dryrun...')
-    response = context.dryrun()
-    click.echo(response)
-    click.echo('...done')
-
-@cli.command()
+@click.option(
+    '--input',
+)
+@click.option(
+    '--input-file',
+    type=click.File('rb'),
+)
 @click.pass_context
 def invoke_async(ctx):
-    context = Context(ctx.obj['config'], ctx.obj['debug'])
+    context = Context(ctx.obj['name'], ctx.obj['config'], ctx.obj['debug'])
+    input = load_input(ctx, input, input_file)
     click.echo('invoking async...')
-    response = context.invoke_async()
+    response = context.invoke_async(input)
     click.echo(response)
     click.echo('...done')
 
 @cli.command()
 @click.pass_context
 def tail(ctx):
-    context = Context(ctx.obj['config'], ctx.obj['debug'])
+    context = Context(ctx.obj['name'], ctx.obj['config'], ctx.obj['debug'])
     click.echo('tailing logs...')
     for e in context.tail()[-10:]:
         ts = datetime.utcfromtimestamp(e['timestamp']//1000).isoformat()
@@ -136,7 +158,7 @@ def tail(ctx):
 @cli.command()
 @click.pass_context
 def status(ctx):
-    context = Context(ctx.obj['config'], ctx.obj['debug'])
+    context = Context(ctx.obj['name'], ctx.obj['config'], ctx.obj['debug'])
     status = context.status()
     click.echo(click.style('Policy', bold=True))
     if status['policy']:
@@ -171,7 +193,7 @@ def status(ctx):
 @cli.command()
 @click.pass_context
 def delete(ctx):
-    context = Context(ctx.obj['config'], ctx.obj['debug'])
+    context = Context(ctx.obj['name'], ctx.obj['config'], ctx.obj['debug'])
     click.echo('deleting...')
     context.delete()
     click.echo('...done')
@@ -179,7 +201,7 @@ def delete(ctx):
 @cli.command()
 @click.pass_context
 def add_event_sources(ctx):
-    context = Context(ctx.obj['config'], ctx.obj['debug'])
+    context = Context(ctx.obj['name'], ctx.obj['config'], ctx.obj['debug'])
     click.echo('adding event sources...')
     context.add_event_sources()
     click.echo('...done')
@@ -187,7 +209,7 @@ def add_event_sources(ctx):
 @cli.command()
 @click.pass_context
 def update_event_sources(ctx):
-    context = Context(ctx.obj['config'], ctx.obj['debug'])
+    context = Context(ctx.obj['name'], ctx.obj['config'], ctx.obj['debug'])
     click.echo('updating event sources...')
     context.update_event_sources()
     click.echo('...done')

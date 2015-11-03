@@ -35,7 +35,7 @@ class Function(object):
 
     @property
     def name(self):
-        return self._config['name']
+        return self._config.get('name', self._context.name)
 
     @property
     def runtime(self):
@@ -59,7 +59,7 @@ class Function(object):
 
     @property
     def zipfile_name(self):
-        return self._config['zipfile_name']
+        return self._config.get('zipfile_name', self._context.name + '.zip')
 
     @property
     def path(self):
@@ -67,7 +67,7 @@ class Function(object):
 
     @property
     def test_data(self):
-        return self._config['test_data']
+        return self._config.get('test_data')
 
     @property
     def permissions(self):
@@ -210,22 +210,26 @@ class Function(object):
 
     def _invoke(self, test_data, invocation_type):
         if test_data is None:
-            test_data = self.test_data
+            if not self.test_data:
+                test_data=""
+            else:
+                with open(self.test_data) as fp:
+                    test_data = fp.read()
         LOG.debug('invoke %s', test_data)
-        with open(test_data) as fp:
-            response = self._lambda_svc.invoke(
-                FunctionName=self.name,
-                InvocationType=invocation_type,
-                LogType='Tail',
-                Payload=fp.read())
+        response = self._lambda_svc.invoke(
+            FunctionName=self.name,
+            InvocationType=invocation_type,
+            LogType='Tail',
+            Payload=test_data)
         LOG.debug(response)
         return response
 
-    def invoke(self, test_data=None):
-        return self._invoke(test_data, 'RequestResponse')
+    def invoke(self, test_data=None, dry_run=False):
+        if dry_run:
+            return self._invoke(test_data, 'DryRun')
+        else:
+            return self._invoke(test_data, 'RequestResponse')
 
     def invoke_async(self, test_data=None):
         return self._invoke(test_data, 'Event')
-
-    def dryrun(self, test_data=None):
-        return self._invoke(test_data, 'DryRun')
+        

@@ -28,7 +28,8 @@ InfoFmtString = '\t%(message)s'
 
 class Context(object):
 
-    def __init__(self, config_file, debug=False):
+    def __init__(self, name, config_file, debug=False):
+        self.name = name
         if debug:
             self.set_logger('kappa', logging.DEBUG)
         else:
@@ -44,8 +45,12 @@ class Context(object):
         else:
             self.policies = None
         if 'role' in self.config.get('iam', {}):
-            self.role = kappa.role.Role(
-                self, self.config['iam']['role'])
+            role_config = self.config['iam']['role']
+            if role_config is True:
+                role_config = {}
+            if not role_config is False:
+                self.role = kappa.role.Role(
+                    self, role_config)
         else:
             self.role = None
         self.function = kappa.function.Function(
@@ -153,11 +158,8 @@ class Context(object):
     def update_code(self):
         self.function.update()
 
-    def invoke(self):
-        return self.function.invoke()
-
-    def dryrun(self):
-        return self.function.dryrun()
+    def invoke(self, input, dry_run=False):
+        return self.function.invoke(test_data=input, dry_run=dry_run)
 
     def invoke_async(self):
         return self.function.invoke_async()

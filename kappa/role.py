@@ -60,7 +60,7 @@ class Role(object):
 
     @property
     def name(self):
-        return self._config['name']
+        return self._config.get('name', self._context.name)
 
     @property
     def arn(self):
