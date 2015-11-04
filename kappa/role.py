@@ -114,7 +114,7 @@ class Role(object):
                 logging_policy_document = LoggingPolicyDocumentTemplate.format(
                         region=self._iam_svc.meta.region_name,
                         account_id=account_id,
-                        function_name=self._context.lambda_config.get('name'),
+                        function_name=self._context.function.name,
                     )
                 
                 response = self._iam_svc.put_role_policy(
