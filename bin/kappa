@@ -20,6 +20,7 @@ import os, os.path
 import click
 
 from kappa.context import Context
+from kappa.function import Function
 
 @click.group()
 @click.option(
@@ -34,9 +35,10 @@ from kappa.context import Context
     help='Turn on debugging output'
 )
 @click.pass_context
-def cli(ctx, config=None, debug=False):
+def cli(ctx, config=None, debug=False, new=False):
     err = []
     found = False
+    configFile = None
     if config is not None and os.path.dirname(config):
         config = [config]
         try:
@@ -74,12 +76,21 @@ def cli(ctx, config=None, debug=False):
                 break
             d = newd
 
-    if not found:
+    if ctx.invoked_subcommand != 'new' and not found:
         raise click.FileError(config[0], hint=', '.join(err))
+    if ctx.invoked_subcommand == 'new' and found:
+        raise click.ClickException('Cannot create project within another project')
 
     ctx.obj['debug'] = debug
     ctx.obj['config'] = configFile
     ctx.obj['name'] = os.path.basename(os.path.dirname(configPath))
+
+@cli.command()
+@click.pass_context
+def new(ctx):
+    with open('kappa.yaml', 'w') as fp:
+        fp.write(KAPPA_NEW_CONFIG)
+    os.mkdir('src')
 
 @cli.command()
 @click.pass_context
@@ -214,6 +225,67 @@ def update_event_sources(ctx):
     context.update_event_sources()
     click.echo('...done')
 
+
+KAPPA_NEW_CONFIG = """# Profile and region will get picked up automatically if not set
+#profile: personal
+#region: us-east-1
+
+iam:
+  # Existing managed policies only need a name.
+  # If only a single policy is used, it doesn't need to be inside a list.
+  policy:
+    - name: AWSLambdaExecute
+    - name: MyPolicy
+      document: >
+        {{
+          "Version": ...
+        }}
+  
+  # The IAM role used for executing the Lambda function defaults to the project name.
+  # Set role to the object {{"name": <RoleName>}} to override
+  # The policy listed above will be attached to this role once it is created.
+  role: True
+lambda:
+  # Defaults to project name
+  name: S3Sample
+  
+  # Defaults to project name + .zip
+  zipfile_name: S3Sample.zip
+  
+  # Optional
+  description: Testing S3 Lambda handler
+  
+  # Defaults to src
+  path: src/
+  
+  handler: handler.handler
+  
+  # Automatically set based on contents of path
+  runtime: python2.7 | nodejs
+  
+  # Defaults to {default_memory}
+  memory_size: {default_memory}
+  
+  # Defaults to {default_timeout}
+  timeout: {default_timeout}
+
+  permissions:
+    - statement_id: s3_invoke
+      action: lambda:invokeFunction
+      principal: s3.amazonaws.com
+      # Change this to refer to your own SNS topic
+      source_arn: arn:aws:s3:::test-1245812163
+  
+  event_sources:
+    - arn: arn:aws:s3:::test-1245812163
+      events:
+        - s3:ObjectCreated:*
+  
+  #test_data: input.json
+""".format(
+    default_memory=Function.DEFAULT_MEMORY,
+    default_timeout=Function.DEFAULT_TIMEOUT,
+)
 
 if __name__ == '__main__':
     cli(obj={})

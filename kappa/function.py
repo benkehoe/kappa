@@ -24,6 +24,8 @@ LOG = logging.getLogger(__name__)
 
 
 class Function(object):
+    DEFAULT_MEMORY = int(os.getenv('KAPPA_DEFAULT_TIMEOUT', '128'))
+    DEFAULT_TIMEOUT = int(os.getenv('KAPPA_DEFAULT_TIMEOUT', '4'))
 
     def __init__(self, context, config):
         self._context = context
@@ -39,6 +41,10 @@ class Function(object):
 
     @property
     def runtime(self):
+        if 'runtime' not in self._config:
+            runtime = self._context.get_default_runtime()
+            if runtime:
+                return runtime
         return self._config['runtime']
 
     @property
@@ -47,15 +53,15 @@ class Function(object):
 
     @property
     def description(self):
-        return self._config['description']
+        return self._config.get('description', '')
 
     @property
     def timeout(self):
-        return self._config['timeout']
+        return self._config.get('timeout', self.DEFAULT_TIMEOUT)
 
     @property
     def memory_size(self):
-        return self._config['memory_size']
+        return self._config.get('memory_size', self.DEFAULT_MEMORY)
 
     @property
     def zipfile_name(self):

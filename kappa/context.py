@@ -14,6 +14,7 @@
 import logging
 import yaml
 import time
+import os
 
 import kappa.function
 import kappa.event_source
@@ -75,6 +76,18 @@ class Context(object):
     @property
     def exec_role_arn(self):
         return self.role.arn
+
+    def get_default_runtime(self):
+        source_path = self.function.path
+        files = os.listdir(source_path)
+        python = any(fname.endswith('.py') for fname in files)
+        javascript = any(fname.endswith('.js') for fname in files)
+        if python and not javascript:
+            return 'python2.7'
+        if javascript and not python:
+            return 'nodejs'
+        return None
+
 
     def debug(self):
         self.set_logger('kappa', logging.DEBUG)
