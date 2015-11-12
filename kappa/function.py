@@ -32,6 +32,7 @@ class Function(object):
         self._config = config
         aws = kappa.aws.get_aws(context)
         self._lambda_svc = aws.create_client('lambda')
+        self._s3_svc = aws.create_client('s3')
         self._arn = None
         self._log = None
 
@@ -62,6 +63,14 @@ class Function(object):
     @property
     def memory_size(self):
         return self._config.get('memory_size', self.DEFAULT_MEMORY)
+
+    @property
+    def s3(self):
+        return self._config.get('s3', None)
+
+    @property
+    def s3_only(self):
+        return self._config.get('s3', {}).get('only', False)
 
     @property
     def zipfile_name(self):
@@ -158,20 +167,42 @@ class Function(object):
         with open(self.zipfile_name, 'rb') as fp:
             exec_role = self._context.exec_role_arn
             LOG.debug('exec_role=%s', exec_role)
-            try:
-                zipdata = fp.read()
-                response = self._lambda_svc.create_function(
-                    FunctionName=self.name,
-                    Code={'ZipFile': zipdata},
-                    Runtime=self.runtime,
-                    Role=exec_role,
-                    Handler=self.handler,
-                    Description=self.description,
-                    Timeout=self.timeout,
-                    MemorySize=self.memory_size)
-                LOG.debug(response)
-            except Exception:
-                LOG.exception('Unable to upload zip file')
+            
+            zipdata = fp.read()
+            if self.s3:
+                bucket = self.s3['bucket']
+                key = self.s3.get('key', self.name)
+
+                try:
+                    LOG.info('uploading to s3://%s/%s', bucket, key)
+                    response = self._s3_svc.put_object(
+                        Bucket=bucket,
+                        Key=key,
+                        Body=zipdata,
+                        ContentType='application/zip')
+                    LOG.debug(response)
+                    code = {'S3Bucket': bucket, 'S3Key': key}
+                except Exception:
+                    LOG.exception('Unable to upload zip file')
+                    return
+            else:
+                code = {'ZipFile': zipdata}
+            
+            if not self.s3_only:
+                try:
+                    LOG.debug('Creating function')
+                    response = self._lambda_svc.create_function(
+                        FunctionName=self.name,
+                        Code=code,
+                        Runtime=self.runtime,
+                        Role=exec_role,
+                        Handler=self.handler,
+                        Description=self.description,
+                        Timeout=self.timeout,
+                        MemorySize=self.memory_size)
+                    LOG.debug(response)
+                except Exception:
+                    LOG.exception('Unable to create function')
         self.add_permissions()
 
     def deploy(self):

@@ -16,6 +16,7 @@ import logging
 import base64
 import exceptions
 import os, os.path
+import yaml
 
 import click
 
@@ -76,21 +77,24 @@ def cli(ctx, config=None, debug=False, new=False):
                 break
             d = newd
 
-    if ctx.invoked_subcommand != 'new' and not found:
+    if ctx.invoked_subcommand != 'init' and not found:
         raise click.FileError(config[0], hint=', '.join(err))
-    if ctx.invoked_subcommand == 'new' and found:
+    if ctx.invoked_subcommand == 'init' and found:
         raise click.ClickException('Cannot create project within another project')
 
     ctx.obj['debug'] = debug
-    ctx.obj['config'] = configFile
+    ctx.obj['config'] = yaml.load(configFile) if configFile else None
     ctx.obj['name'] = os.path.basename(os.path.dirname(configPath))
 
 @cli.command()
+@click.argument('name')
 @click.pass_context
-def new(ctx):
-    with open('kappa.yaml', 'w') as fp:
+def init(ctx, name):
+    if not os.path.isdir(name):
+        os.mkdir(name)
+    with open(os.path.join(name, 'kappa.yaml'), 'w') as fp:
         fp.write(KAPPA_NEW_CONFIG)
-    os.mkdir('src')
+    os.mkdir(os.path.join(name, 'src'))
 
 @cli.command()
 @click.pass_context
@@ -240,47 +244,60 @@ iam:
         {{
           "Version": ...
         }}
-  
+
   # The IAM role used for executing the Lambda function defaults to the project name.
   # Set role to the object {{"name": <RoleName>}} to override
   # The policy listed above will be attached to this role once it is created.
   role: True
 lambda:
   # Defaults to project name
-  name: S3Sample
-  
-  # Defaults to project name + .zip
-  zipfile_name: S3Sample.zip
-  
+  name: MyLambdaFunction
+
   # Optional
-  description: Testing S3 Lambda handler
-  
-  # Defaults to src
-  path: src/
-  
+  description: Description of my Lambda function
+
+  # Required
   handler: handler.handler
-  
-  # Automatically set based on contents of path
-  runtime: python2.7 | nodejs
-  
+
   # Defaults to {default_memory}
   memory_size: {default_memory}
-  
+
   # Defaults to {default_timeout}
   timeout: {default_timeout}
 
+  # Defaults to src
+  path: src/
+
+  # Optional
+  s3:
+    # Set this to upload the zip but not deploy it when calling kappa deploy
+    #only: True
+
+    bucket: MyBucket
+
+    # Optional, defaults to project name
+    key: MyLambdaFunctionKey
+
+  # Optional
   permissions:
     - statement_id: s3_invoke
       action: lambda:invokeFunction
       principal: s3.amazonaws.com
       # Change this to refer to your own SNS topic
       source_arn: arn:aws:s3:::test-1245812163
-  
+
+  # Optional
   event_sources:
     - arn: arn:aws:s3:::test-1245812163
       events:
         - s3:ObjectCreated:*
-  
+
+  # Defaults to project name + .zip
+  zipfile_name: MyLambdaFunction.zip
+
+  # Automatically set based on contents of path
+  runtime: python2.7 | nodejs
+
   #test_data: input.json
 """.format(
     default_memory=Function.DEFAULT_MEMORY,

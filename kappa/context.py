@@ -29,7 +29,7 @@ InfoFmtString = '\t%(message)s'
 
 class Context(object):
 
-    def __init__(self, name, config_file, debug=False):
+    def __init__(self, name, config, debug=False):
         if debug:
             self.set_logger('kappa', logging.DEBUG)
         else:
@@ -37,7 +37,7 @@ class Context(object):
         self.name = name
         LOG.debug('Name: %s', name)
 
-        self.config = yaml.load(config_file)
+        self.config = config
         if 'policy' in self.config.get('iam', {}):
             if isinstance(self.config['iam']['policy'], list):
                 self.policies = [kappa.policy.Policy(
