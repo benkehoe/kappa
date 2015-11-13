@@ -176,8 +176,11 @@ class Context(object):
     def invoke(self, input, dry_run=False):
         return self.function.invoke(test_data=input, dry_run=dry_run)
 
-    def invoke_async(self):
-        return self.function.invoke_async()
+    def invoke_async(self, input):
+        return self.function.invoke_async(test_data=input)
+
+    def invoke_local(self, input):
+        return self.function.invoke_local(test_data=input)
 
     def tail(self):
         return self.function.tail()

@@ -14,6 +14,8 @@
 import logging
 import os
 import zipfile
+import time
+import json
 
 from botocore.exceptions import ClientError
 
@@ -245,13 +247,17 @@ class Function(object):
             response = None
         return response
 
-    def _invoke(self, test_data, invocation_type):
+    def _get_test_data(self, test_data):
         if test_data is None:
             if not self.test_data:
-                test_data=""
+                test_data="null"
             else:
                 with open(self.test_data) as fp:
                     test_data = fp.read()
+        return test_data
+
+    def _invoke(self, test_data, invocation_type):
+        test_data = self._get_test_data(test_data)
         LOG.debug('invoke %s', test_data)
         response = self._lambda_svc.invoke(
             FunctionName=self.name,
@@ -269,4 +275,45 @@ class Function(object):
 
     def invoke_async(self, test_data=None):
         return self._invoke(test_data, 'Event')
-        
+
+    def invoke_local(self, test_data=None):
+        import sys
+        sys.path.insert(0, self.path)
+        module_name = '.'.join(self.handler.split('.')[:-1])
+        func_name = self.handler.split('.')[-1]
+        import importlib
+        module = importlib.import_module(module_name)
+        func = getattr(module, func_name)
+
+        test_data = self._get_test_data(test_data)
+        try:
+            event = json.loads(test_data)
+        except:
+            event = test_data
+        context = _FakeLambdaContext(self, time.time())
+
+        return func(event, context)
+
+class _FakeLambdaContext(object):
+    def __init__(self, function, start):
+        import uuid
+        self._func = function
+        self._start = start
+
+        self.function_name = function.name
+        self.function_version = '$LATEST'
+        self.invoked_function_arn = 'arn:aws:lambda:us-east-1:000000000000:function:{}:{}'.format(self.function_name, self.function_version)
+        self.memory_limit_in_mb = function.memory_size
+        self.aws_request_id = uuid.uuid4()
+        self.log_group_name = '/aws/lambda/{}'.format(self.function_name)
+        self.log_stream_name = '{}/[{}]{}'.format(
+            time.strftime('%Y/%m/%d', time.gmtime(self._start)),
+            self.function_version,
+            self.aws_request_id)
+        self.identity = None
+        self.client_context = None
+
+    def get_remaining_time_in_millis(self):
+        time_used = time.time()- self._start
+        time_left = self._func.timeout - time_used
+        return int(round(time_left * 1000))

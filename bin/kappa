@@ -16,6 +16,7 @@ import logging
 import base64
 import exceptions
 import sys, os, os.path
+
 import yaml
 
 import click
@@ -159,13 +160,20 @@ def load_input(context, input, input_file):
     '--dry-run',
     is_flag=True,
 )
+@click.option(
+    '--local',
+    is_flag=True,
+)
 @click.pass_context
-def invoke(ctx, async=False, input=None, input_file=None, dry_run=False):
+def invoke(ctx, async=False, input=None, input_file=None, dry_run=False, local=False):
     context = Context(ctx.obj['name'], ctx.obj['config'], ctx.obj['debug'])
     input = load_input(context, input, input_file)
 
     click.echo('invoking...')
-    if async:
+    if local:
+        response = context.invoke_local(input)
+        click.echo(response)
+    elif async:
         response = context.invoke_async(input)
         click.echo(response)
     else:
