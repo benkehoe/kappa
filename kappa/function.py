@@ -218,10 +218,21 @@ class Function(object):
         self.zip_lambda_function(self.zipfile_name, self.path)
         with open(self.zipfile_name, 'rb') as fp:
             try:
+                LOG.debug('updating code')
                 zipdata = fp.read()
                 response = self._lambda_svc.update_function_code(
                     FunctionName=self.name,
                     ZipFile=zipdata)
+                LOG.debug(response)
+                
+                LOG.debug('updating configuration')
+                response = self._lambda_svc.update_function_configuration(
+                    FunctionName=self.name,
+                    Role=self._context.exec_role_arn,
+                    Handler=self.handler,
+                    Description=self.description,
+                    Timeout=self.timeout,
+                    MemorySize=self.memory_size)
                 LOG.debug(response)
             except Exception:
                 LOG.exception('Unable to update zip file')

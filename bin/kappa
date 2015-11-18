@@ -292,7 +292,7 @@ lambda:
   # Defaults to src
   path: src/
 
-  # Optional
+  # Optional: upload zip to S3
   s3:
     # Set this to upload the zip but not deploy it when calling kappa deploy
     #only: True
