@@ -27,7 +27,7 @@ LOG = logging.getLogger(__name__)
 
 class Function(object):
     DEFAULT_MEMORY = int(os.getenv('KAPPA_DEFAULT_TIMEOUT', '128'))
-    DEFAULT_TIMEOUT = int(os.getenv('KAPPA_DEFAULT_TIMEOUT', '4'))
+    DEFAULT_TIMEOUT = int(os.getenv('KAPPA_DEFAULT_TIMEOUT', '3'))
 
     def __init__(self, context, config):
         self._context = context
@@ -301,20 +301,33 @@ class Function(object):
             event = json.loads(test_data)
         except:
             event = test_data
-        context = _FakeLambdaContext(self, time.time())
+        context = _FakeLambdaContext(
+            function_name=self.name,
+            memory_size=self.memory_size,
+            timeout=self.timeout)
 
         return func(event, context)
 
 class _FakeLambdaContext(object):
-    def __init__(self, function, start):
-        import uuid
-        self._func = function
-        self._start = start
+    def __init__(self,
+            function_name='FunctionName',
+            function_version='$LATEST',
+            memory_size=128,
+            timeout=3,
+            start=None):
+        import time, uuid
+        
+        if start is None:
+            start = time.time()
 
-        self.function_name = function.name
-        self.function_version = '$LATEST'
+        self._timeout = timeout
+        self._start = start
+        self._get_time = time.time
+
+        self.function_name = function_name
+        self.function_version = function_version
         self.invoked_function_arn = 'arn:aws:lambda:us-east-1:000000000000:function:{}:{}'.format(self.function_name, self.function_version)
-        self.memory_limit_in_mb = function.memory_size
+        self.memory_limit_in_mb = memory_size
         self.aws_request_id = uuid.uuid4()
         self.log_group_name = '/aws/lambda/{}'.format(self.function_name)
         self.log_stream_name = '{}/[{}]{}'.format(
@@ -325,6 +338,6 @@ class _FakeLambdaContext(object):
         self.client_context = None
 
     def get_remaining_time_in_millis(self):
-        time_used = time.time()- self._start
-        time_left = self._func.timeout - time_used
+        time_used = self._get_time()- self._start
+        time_left = self._timeout * 1000 - time_used
         return int(round(time_left * 1000))
